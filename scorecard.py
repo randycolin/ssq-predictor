@@ -210,17 +210,15 @@ def factor_historical_pattern(num, draws, last_reds, last_blue):
     return 0.5
 
 
-# ============================================================
-# 因子注册表
-# ============================================================
+from config import SSQ_RED_WEIGHTS, SSQ_BLUE_WEIGHTS, SSQ_STRUCT_TEMPLATES
 
 RED_FACTORS = [
     # 纯老彩民因子（红球结构）
-    ('重号', factor_repeat, 3.0),
-    ('邻号', factor_neighbor, 2.0),
-    ('和值平衡', factor_sum_balance, 2.0),
-    ('区间平衡', factor_zone_balance, 2.0),
-    ('历史模式', factor_historical_pattern, 1.0),
+    ('重号', factor_repeat, SSQ_RED_WEIGHTS['repeat']),
+    ('邻号', factor_neighbor, SSQ_RED_WEIGHTS['neighbor']),
+    ('和值平衡', factor_sum_balance, SSQ_RED_WEIGHTS['sum_balance']),
+    ('区间平衡', factor_zone_balance, SSQ_RED_WEIGHTS['zone_balance']),
+    ('历史模式', factor_historical_pattern, SSQ_RED_WEIGHTS['pattern']),
     # AI因子归零
     ('历史频率', factor_historical_frequency, 0.0),
     ('近期热度', factor_recent_frequency, 0.0),
@@ -230,10 +228,10 @@ RED_FACTORS = [
 
 BLUE_FACTORS = [
     # 蓝球保留AI因子（近期热度有效）
-    ('近期热度', factor_recent_frequency, 2.0),
-    ('历史频率', factor_historical_frequency, 1.0),
-    ('重号', factor_repeat, 1.5),
-    ('邻号', factor_neighbor, 1.0),
+    ('近期热度', factor_recent_frequency, SSQ_BLUE_WEIGHTS['recent_hot']),
+    ('历史频率', factor_historical_frequency, SSQ_BLUE_WEIGHTS['history_freq']),
+    ('重号', factor_repeat, SSQ_BLUE_WEIGHTS['repeat']),
+    ('邻号', factor_neighbor, SSQ_BLUE_WEIGHTS['neighbor']),
     ('间隔百分位', factor_interval_percentile, 0.0),
 ]
 
@@ -331,18 +329,8 @@ def select_numbers(red_scores, blue_scores, draws=None):
     reds_sorted = sorted(red_scores, key=lambda x: x[1], reverse=True)
     blues_sorted = sorted(blue_scores, key=lambda x: x[1], reverse=True)
     
-    # 结构模板（基于3447期真实开奖统计）
-    # (和值范围, 奇偶范围, 跨度范围, 连号范围, 三区)
-    STRUCTURES = [
-        ((90, 110), (2, 4), (20, 28), (2, 2, 2)),   # 15.4%
-        ((90, 110), (2, 4), (20, 28), (3, 2, 1)),   # 9.4%
-        ((90, 110), (2, 4), (20, 28), (2, 3, 1)),   # 8.7%
-        ((80, 100), (3, 5), (20, 28), (3, 1, 2)),   # 9.3%
-        ((100, 120), (2, 4), (22, 30), (1, 3, 2)),  # 9.1%
-        ((95, 115), (2, 4), (24, 30), (2, 1, 3)),   # 8.6%
-        ((80, 90),  (3, 5), (18, 26), (2, 2, 2)),   # 小和值版
-        ((110, 120), (1, 3), (24, 30), (2, 2, 2)),  # 大和值版
-    ]
+    # 结构模板（从config.py读取）
+    STRUCTURES = SSQ_STRUCT_TEMPLATES
     
     def match_structure(reds, tmpl):
         c_sum, c_odd, c_span = sum(reds), sum(1 for n in reds if n%2==1), max(reds)-min(reds)

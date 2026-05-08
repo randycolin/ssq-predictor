@@ -7,7 +7,10 @@ Stores all historical draws, statistics, and predictions
 import sqlite3
 import json
 import os
+import logging
 from datetime import datetime, date
+
+logger = logging.getLogger(__name__)
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'ssq.db')
 
@@ -177,7 +180,8 @@ def insert_draws_batch(draws):
         conn.commit()
         return len(data)
     except Exception as e:
-        print(f"Batch insert error: {e}")
+        conn.rollback()
+        logger.error(f"批量插入失败，已回滚: {e}")
         return 0
     finally:
         conn.close()
@@ -193,7 +197,7 @@ def save_prediction(period, algorithm, numbers):
         ''', (period, algorithm, numbers[0], numbers[1], numbers[2], numbers[3], numbers[4], numbers[5], numbers[6]))
         conn.commit()
     except Exception as e:
-        print(f"Save prediction error: {e}")
+        logger.error(f"Save prediction error: {e}")
     finally:
         conn.close()
 

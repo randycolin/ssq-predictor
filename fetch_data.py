@@ -3,10 +3,13 @@
 双色球历史数据抓取器
 从500彩票网抓取2003年至今的全部开奖数据
 """
-
 import requests
-import time
 import re
+import time
+import logging
+from datetime import datetime, date
+
+logger = logging.getLogger(__name__)
 import sys
 import os
 from datetime import datetime
@@ -60,7 +63,7 @@ def fetch_all_history():
             return []
             
     except Exception as e:
-        print(f"抓取失败: {e}")
+        logger.error(f"抓取失败: {e}")
         return []
 
 def fetch_latest():
@@ -93,7 +96,7 @@ def fetch_latest():
                 return []
         return []
     except Exception as e:
-        print(f"更新失败: {e}")
+        logger.error(f"更新失败: {e}")
         return []
 
 def parse_500_html(html):
@@ -154,6 +157,7 @@ def parse_500_html(html):
                 draws.append(draw)
                 
         except (ValueError, IndexError) as e:
+            logger.warning(f"解析行失败: {e}")
             continue
     
     return draws

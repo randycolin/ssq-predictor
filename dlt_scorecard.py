@@ -7,6 +7,10 @@
 import numpy as np
 from collections import Counter, defaultdict
 from itertools import combinations
+from config import (
+    DLT_FRONT_WEIGHTS, DLT_BACK_PAIR_WEIGHTS,
+    DLT_FRONT_STRUCT_TEMPLATES, DLT_BACK_STRUCT_TEMPLATES
+)
 
 # ============================================================
 # 前区因子（35选5）
@@ -137,6 +141,7 @@ def dlt_score_back_pairs(draws):
     if len(draws) < 10:
         return None
     
+    w = DLT_BACK_PAIR_WEIGHTS
     all_pairs = list(combinations(range(1, 13), 2))
     last = draws[-1]
     last_backs = {last['back1'], last['back2']}
@@ -151,35 +156,35 @@ def dlt_score_back_pairs(draws):
         pair_set = set(pair)
         score = 0.0
         
-        # 1. 近期热度：近20期出现次数×2.0
+        # 1. 近期热度
         cnt_short = sum(1 for d in recent_short if d['back1'] in pair_set and d['back2'] in pair_set)
-        score += cnt_short * 2.0
+        score += cnt_short * w['recent_hot']
         
-        # 2. 中期热度：近100期出现频率×1.5
+        # 2. 中期热度
         cnt_mid = sum(1 for d in recent_mid if d['back1'] in pair_set and d['back2'] in pair_set)
-        score += cnt_mid / 10  # 归一化
+        score += cnt_mid * w['mid_freq']
         
-        # 3. 连开趋势：上期是不是这个pair×2.0
-        score += 2.0 if pair_set == last_backs else 0.0
+        # 3. 连开趋势
+        score += w['consecutive'] if pair_set == last_backs else 0.0
         
-        # 4. 邻号趋势：和上期后区号码差1的个数×1.0
+        # 4. 邻号趋势
         neighbor_scores = []
         for n in pair:
             neighbors = {n-1, n+1} & last_backs
             neighbor_scores.append(len(neighbors))
-        score += sum(neighbor_scores) * 1.0
+        score += sum(neighbor_scores) * w['neighbor']
         
-        # 5. 跨度偏好：跨度1-5加分×0.8
+        # 5. 跨度偏好
         span = max(pair) - min(pair)
         if span <= 5:
-            score += 0.8
+            score += w['span_small']
         elif span <= 8:
-            score += 0.4
+            score += w['span_mid']
         
-        # 6. 和值偏好：和值7-14加分×0.5
+        # 6. 和值偏好
         pair_sum = sum(pair)
         if 7 <= pair_sum <= 14:
-            score += 0.5
+            score += w['sum_mid']
         
         pair_scores.append((pair, score))
     
@@ -191,17 +196,17 @@ def dlt_score_back_pairs(draws):
 # 因子注册表
 
 DLT_FRONT_FACTORS = [
-    ('重号', dlt_factor_repeat_f, 3.0),
-    ('邻号', dlt_factor_neighbor_f, 2.0),
-    ('和值平衡', dlt_factor_sum_balance_f, 2.0),
-    ('区间平衡', dlt_factor_zone_balance_f, 2.0),
+    ('重号', dlt_factor_repeat_f, DLT_FRONT_WEIGHTS['repeat']),
+    ('邻号', dlt_factor_neighbor_f, DLT_FRONT_WEIGHTS['neighbor']),
+    ('和值平衡', dlt_factor_sum_balance_f, DLT_FRONT_WEIGHTS['sum_balance']),
+    ('区间平衡', dlt_factor_zone_balance_f, DLT_FRONT_WEIGHTS['zone_balance']),
 ]
 
 DLT_BACK_FACTORS = [
-    ('近期热度', dlt_factor_recent_b, 2.0),
-    ('中位热度', dlt_factor_mid_freq_b, 1.5),
-    ('连开趋势', dlt_factor_consecutive_b, 1.5),
-    ('邻号趋势', dlt_factor_neighbor_trend_b, 1.0),
+    ('近期热度', dlt_factor_recent_b, DLT_BACK_PAIR_WEIGHTS['recent_hot']),
+    ('中位热度', dlt_factor_mid_freq_b, DLT_BACK_PAIR_WEIGHTS['mid_freq']),
+    ('连开趋势', dlt_factor_consecutive_b, DLT_BACK_PAIR_WEIGHTS['consecutive']),
+    ('邻号趋势', dlt_factor_neighbor_trend_b, DLT_BACK_PAIR_WEIGHTS['neighbor']),
     ('历史频率', dlt_factor_historical_b, 1.0),
     ('跨度平衡', dlt_factor_span_balance_b, 1.0),
 ]
@@ -262,18 +267,8 @@ def dlt_select_numbers(front_scores, back_scores, draws=None):
     fs = sorted(front_scores, key=lambda x: x[1], reverse=True)
     bs = sorted(back_scores, key=lambda x: x[1], reverse=True)
     
-    # 前区结构模板（基于1364期真实数据）
-    # (和值, 奇偶, 跨度, 三区)
-    FRONT_STRUCTS = [
-        ((70, 110), (2, 4), (18, 30), (2, 1, 2)),    # 14.8%
-        ((70, 110), (2, 4), (18, 30), (2, 2, 1)),    # 13.0%
-        ((70, 110), (2, 4), (18, 30), (1, 2, 2)),    # 11.7%
-        ((80, 120), (2, 4), (20, 30), (1, 3, 1)),    # 8.7%
-        ((70, 100), (3, 5), (20, 28), (1, 1, 3)),    # 8.4%
-        ((60, 90),  (2, 3), (18, 26), (3, 1, 1)),    # 6.8%
-        ((80, 110), (2, 3), (22, 30), (2, 0, 3)),    # 5.1%
-        ((60, 90),  (2, 4), (20, 28), (0, 2, 3)),    # 4.8%
-    ]
+    # 前区结构模板（从config.py读取）
+    FRONT_STRUCTS = DLT_FRONT_STRUCT_TEMPLATES
     
     def match_front(fs_set, tmpl):
         c_sum, c_odd = sum(fs_set), sum(1 for n in fs_set if n % 2 == 1)
@@ -286,13 +281,8 @@ def dlt_select_numbers(front_scores, back_scores, draws=None):
                 tmpl[2][0] <= c_span <= tmpl[2][1] and
                 low == tmpl[3][0] and mid == tmpl[3][1] and high == tmpl[3][2])
     
-    # 后区结构（基于真实数据）
-    BACK_STRUCTS = [
-        ((8, 18), (1, 1), (1, 7)),   # 1奇1偶 + 小跨度
-        ((6, 16), (0, 0), (1, 5)),   # 全偶
-        ((10, 20), (2, 2), (1, 7)),  # 全奇
-        ((8, 18), (1, 1), (1, 5)),   # 最密集
-    ]
+    # 后区结构（从config.py读取）
+    BACK_STRUCTS = DLT_BACK_STRUCT_TEMPLATES
     
     def match_back(bs_set, tmpl):
         c_sum, c_odd = sum(bs_set), sum(1 for n in bs_set if n % 2 == 1)

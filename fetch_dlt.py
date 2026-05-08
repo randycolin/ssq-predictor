@@ -7,7 +7,10 @@ import requests
 import re
 import time
 import json
+import logging
 from datetime import datetime, date
+
+logger = logging.getLogger(__name__)
 from dlt_database import init_dlt_tables, insert_dlt_draws_batch, get_dlt_draw_count
 
 def fetch_dlt_latest_home():
@@ -186,8 +189,8 @@ def fetch_dlt_from_apis():
                             'front5': int(parts[4]),
                             'back1': int(parts[5]), 'back2': int(parts[6]),
                         })
-    except:
-        pass
+    except Exception as e:
+        logger.warning(f"大乐透源1解析行失败: {e}")
     
     # 按期号排序去重
     all_draws.sort(key=lambda x: x['period'])

@@ -4,7 +4,12 @@
 追加到现有 ssq.db 中，新增大乐透专用表
 """
 import sqlite3
+import json
 import os
+import logging
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'ssq.db')
 
@@ -71,7 +76,7 @@ def init_dlt_tables():
     
     conn.commit()
     conn.close()
-    print("✅ 大乐透数据库表创建完成")
+    logger.info("大乐透数据库表创建完成")
 
 def insert_dlt_draw(draw):
     """插入单条大乐透开奖"""
@@ -94,7 +99,7 @@ def insert_dlt_draw(draw):
         conn.commit()
         return True
     except Exception as e:
-        print(f"Insert DLT error: {e}")
+        logger.error(f"Insert DLT error: {e}")
         return False
     finally:
         conn.close()
@@ -121,7 +126,8 @@ def insert_dlt_draws_batch(draws):
         conn.commit()
         return len(data)
     except Exception as e:
-        print(f"Batch insert DLT error: {e}")
+        conn.rollback()
+        logger.error(f"大乐透批量插入失败，已回滚: {e}")
         return 0
     finally:
         conn.close()
@@ -158,7 +164,7 @@ def save_dlt_prediction(period, algorithm, front_numbers, back_numbers):
               back_numbers[0], back_numbers[1]))
         conn.commit()
     except Exception as e:
-        print(f"Save DLT prediction error: {e}")
+        logger.error(f"Save DLT prediction error: {e}")
     finally:
         conn.close()
 
@@ -172,7 +178,7 @@ def save_dlt_prediction_result(period, algorithm, front_hit, back_hit, prize_lev
         ''', (period, algorithm, front_hit, back_hit, prize_level))
         conn.commit()
     except Exception as e:
-        print(f"Save DLT result error: {e}")
+        logger.error(f"Save DLT result error: {e}")
     finally:
         conn.close()
 
