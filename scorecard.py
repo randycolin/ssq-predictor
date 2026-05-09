@@ -340,24 +340,30 @@ def select_numbers(red_scores, blue_scores, draws=None):
                 tmpl[2][0] <= c_span <= tmpl[2][1] and
                 low == tmpl[3][0] and mid == tmpl[3][1] and high == tmpl[3][2])
     
-    # 从TOP20中枚举，优选符合结构的组合
-    top20 = [r[0] for r in reds_sorted[:20]]
+    # 从config.py读取选号参数
+    from config import SSQ_BACKTEST
+    TOP_N = SSQ_BACKTEST['top_n_candidates']       # 候选池大小
+    MAX_REPEAT = SSQ_BACKTEST['max_repeat_reds']   # 最大重号数
+    FALLBACK_TOP = SSQ_BACKTEST['fallback_top_n']  # fallback候选数
+
+    # 从TOP{N}中枚举，优选符合结构的组合
+    top_n = [r[0] for r in reds_sorted[:TOP_N]]
     last_draw = None
     if draws:
         last_draw = draws[-1]
         last_reds = [last_draw['red1'], last_draw['red2'], last_draw['red3'],
                      last_draw['red4'], last_draw['red5'], last_draw['red6']]
-    
+
     best_reds = None
     best_score = -999
-    
-    for combo in combinations(top20, 6):
-        # 重号限制：最多3个重号（历史上4+重号仅占0.5%）
+
+    for combo in combinations(top_n, 6):
+        # 重号限制：最多MAX_REPEAT个重号
         if last_reds:
             repeat_count = len(set(combo) & set(last_reds))
-            if repeat_count >= 4:
+            if repeat_count > MAX_REPEAT:
                 continue
-        
+
         for tmpl in STRUCTURES:
             if match_structure(combo, tmpl):
                 score = sum(r[1] for r in reds_sorted if r[0] in combo)
@@ -365,11 +371,11 @@ def select_numbers(red_scores, blue_scores, draws=None):
                     best_score = score
                     best_reds = sorted(combo)
                 break  # 匹配一个模板就行
-    
-    # fallback: TOP8最佳组合
+
+    # fallback: TOP{N}最佳组合
     if best_reds is None:
-        top8 = [r[0] for r in reds_sorted[:8]]
-        for combo in combinations(top8, 6):
+        fallback_n = [r[0] for r in reds_sorted[:FALLBACK_TOP]]
+        for combo in combinations(fallback_n, 6):
             score = sum(r[1] for r in reds_sorted if r[0] in combo)
             c_sum, c_odd, c_span = sum(combo), sum(1 for n in combo if n%2==1), max(combo)-min(combo)
             d = (1 if 20<=c_span<=28 else 0)+(1 if 2<=c_odd<=4 else 0)+(0.5 if 85<=c_sum<=125 else 0)

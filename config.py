@@ -89,9 +89,10 @@ DLT_BACK_STRUCT_TEMPLATES = [
 # 双色球 - 回测参数
 # ==========================================
 SSQ_BACKTEST = {
-    'top_n_candidates': 20,      # 候选号码数量
+    'top_n_candidates': 20,      # select_numbers的候选号码数量
     'min_train_draws': 50,       # 最小训练期数
-    'consecutive_max_reds': 3,   # 与前一期最大重复红球数
+    'max_repeat_reds': 3,       # 与前一期最大重复红球数（4+重号仅0.5%）
+    'fallback_top_n': 8,         # 无结构匹配时的fallback候选数
     'random_seed': 42,           # 随机种子（如使用）
 }
 
@@ -99,9 +100,11 @@ SSQ_BACKTEST = {
 # 大乐透 - 回测参数
 # ==========================================
 DLT_BACKTEST = {
-    'front_top_n': 15,
-    'back_top_n_pairs': 25,
-    'min_train_draws': 30,
-    'max_repeat_fronts': 3,
+    'front_top_n': 15,           # 前区候选号码数量
+    'front_fallback_top_n': 8,   # 前区fallback候选数
+    'back_top_n_pairs': 25,      # 后区pair候选数
+    'min_train_draws': 30,       # 最小训练期数
+    'max_repeat_fronts': 3,      # 前区最大重号数（4+重号极低）
+    'max_repeat_backs': 1,       # 后区最大重号数（12选2，2个重号=完全重复）
     'random_seed': 42,
 }

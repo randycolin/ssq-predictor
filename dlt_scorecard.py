@@ -292,18 +292,24 @@ def dlt_select_numbers(front_scores, back_scores, draws=None):
                 tmpl[2][0] <= c_span <= tmpl[2][1])
     
     # ---- 前区选号 ----
-    top15 = [r[0] for r in fs[:15]]
+    from config import DLT_BACKTEST
+    FRONT_TOP = DLT_BACKTEST['front_top_n']
+    FRONT_FALLBACK = DLT_BACKTEST['front_fallback_top_n']
+    MAX_REPEAT_FRONT = DLT_BACKTEST['max_repeat_fronts']
+    MAX_REPEAT_BACK = DLT_BACKTEST['max_repeat_backs']
+
+    top_n_fronts = [r[0] for r in fs[:FRONT_TOP]]
     last_fronts_set = set()
     if draws:
         last = draws[-1]
         last_fronts_set = {last[f'front{i}'] for i in range(1, 6)}
-    
+
     best_front = None
     best_score = -999
-    
-    for combo in combinations(top15, 5):
-        # 最多3个重号
-        if last_fronts_set and len(set(combo) & last_fronts_set) >= 4:
+
+    for combo in combinations(top_n_fronts, 5):
+        # 最多MAX_REPEAT_FRONT个重号
+        if last_fronts_set and len(set(combo) & last_fronts_set) > MAX_REPEAT_FRONT:
             continue
         for tmpl in FRONT_STRUCTS:
             if match_front(combo, tmpl):
@@ -312,27 +318,27 @@ def dlt_select_numbers(front_scores, back_scores, draws=None):
                     best_score = sc
                     best_front = sorted(combo)
                 break
-    
+
     # fallback
     if best_front is None:
-        top8 = [r[0] for r in fs[:8]]
-        for combo in combinations(top8, 5):
+        fallback_fronts = [r[0] for r in fs[:FRONT_FALLBACK]]
+        for combo in combinations(fallback_fronts, 5):
             sc = sum(r[1] for r in fs if r[0] in combo)
             if sc > best_score:
                 best_score = sc
                 best_front = sorted(combo)
-    
+
     # ---- 后区选号：直接Pair评分 ---
     pair_scores = dlt_score_back_pairs(draws)
     if pair_scores:
         last = draws[-1]
         last_backs_set = {last['back1'], last['back2']}
-        
+
         best_back = None
         best_back_score = -999
-        for pair, sc in pair_scores[:25]:  # TOP25 pair
-            # 最多1个重号
-            if last_backs_set and len(set(pair) & last_backs_set) >= 2:
+        for pair, sc in pair_scores[:DLT_BACKTEST['back_top_n_pairs']]:  # TOP{N} pair
+            # 最多MAX_REPEAT_BACK个重号
+            if last_backs_set and len(set(pair) & last_backs_set) > MAX_REPEAT_BACK:
                 continue
             # 结构匹配（跨度、和值等已经在pair评分里考虑了，但保留模板）
             for tmpl in BACK_STRUCTS:
